@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Status Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: radial-gradient(circle, #ffffff, #ececec);
+      color: #333;
+      margin: 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-bottom: 15px;
+      color: #333;
+      text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+      font-size: 1.8em;
+    }
+    table {
+      width: 70%;
+      max-width: 800px;
+      border-collapse: collapse;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      background: #fafafa;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid #ccc;
+      text-align: center;
+      font-size: 0.85em;
+    }
+    th {
+      background-color: #555;
+      color: #fff;
+      text-transform: uppercase;
+      font-weight: 700;
+      font-size: 0.85em;
+      cursor: pointer;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .status {
+      font-weight: bold;
+      padding: 5px;
+      border-radius: 15px;
+      font-size: 0.85em;
+    }
+    .alive {
+      background-color: #28a745;
+      color: white;
+    }
+    .dead {
+      background-color: #dc3545;
+      color: white;
+    }
+    .yellow {
+      background-color: #ffc107;
+      color: black;
+    }
+    .pink {
+      background-color: #e83e8c;
+      color: white;
+    }
+    .blue {
+      background-color: #007bff;
+      color: white;
+    }
+    .btn {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.75em;
+    }
+    .btn-ping {
+      background-color: #007bff;
+      color: white;
+      margin-right: 5px;
+    }
+    .btn-ssh {
+      background-color: #6c757d;
+      color: white;
+      margin-right: 5px;
+    }
+    .btn-rdp {
+      background-color: #17a2b8;
+      color: white;
+      margin-right: 5px;
+    }
+    .btn-telnet {
+      background-color: #ffc107;
+      color: black;
+      margin-right: 5px;
+    }
+    .btn-add {
+      background-color: #28a745;
+      color: white;
+      margin-bottom: 10px;
+    }
+    .search {
+      margin-bottom: 10px;
+    }
+    .search input {
+      padding: 6px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      margin-right: 5px;
+      font-size: 0.85em;
+    }
+    .search button {
+      padding: 6px;
+      border: none;
+      border-radius: 5px;
+      background-color: #333;
+      color: white;
+      cursor: pointer;
+      font-size: 0.85em;
+    }
+    .btn-clear {
+      padding: 6px;
+      border: none;
+      border-radius: 5px;
+      background-color: #dc3545;
+      color: white;
+      cursor: pointer;
+      font-size: 0.85em;
+      margin-left: 5px;
+    }
+    .btn-range {
+      background-color: #17a2b8;
+      color: white;
+      margin-bottom: 10px;
+    }
+    .btn-remove-range {
+      background-color: #dc3545;
+      color: white;
+      margin-bottom: 10px;
+    }
+    .device-ip {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+<h1>Device Status Dashboard</h1>
+
+<div class="search">
+  <input type="text" id="searchQuery" name="q" placeholder="Search by IP or DNS" onkeypress="handleKeyPress(event, performSearch)">
+  <button type="button" onclick="performSearch()">Search</button>
+  <button type="button" class="btn-clear" onclick="clearSearch()">Clear</button>
+</div>
+
+<div class="search">
+  <input type="text" id="rangeStartQuery" name="start_ip" placeholder="Search by Start IP" onkeypress="handleKeyPress(event, performRangeSearch)">
+  <input type="text" id="rangeEndQuery" name="end_ip" placeholder="Search by End IP" onkeypress="handleKeyPress(event, performRangeSearch)">
+  <button type="button" onclick="performRangeSearch()">Search Range</button>
+  <button type="button" class="btn-clear" onclick="clearRangeSearch()">Clear</button>
+</div>
+
+<form action="/add" method="post" onsubmit="event.preventDefault(); submitAddForm(this);">
+  <input type="text" id="add_ip" name="ip" placeholder="Enter new IP address">
+  <button type="submit" class="btn btn-add">Add IP</button>
+</form>
+
+<form id="addRangeForm" action="/add_range" method="post" onsubmit="event.preventDefault(); submitRangeForm();">
+  <input type="text" id="start_ip" name="start_ip" placeholder="Enter start IP address">
+  <input type="text" id="end_ip" name="end_ip" placeholder="Enter end IP address">
+  <button type="submit" class="btn btn-range">Add IP Range</button>
+</form>
+
+<form id="removeRangeForm" action="/remove_range" method="post" onsubmit="event.preventDefault(); submitRemoveRangeForm();">
+  <input type="text" id="remove_start_ip" name="start_ip" placeholder="Enter start IP address">
+  <input type="text" id="remove_end_ip" name="end_ip" placeholder="Enter end IP address">
+  <button type="submit" class="btn btn-remove-range">Remove IP Range</button>
+</form>
+
+<table id="deviceTable">
+  <thead>
+  <tr>
+    <th onclick="sortTableByIP()">IP Address <span id="ipSortIndicator">▲</span></th>
+    <th onclick="sortTableByDNS()">DNS <span id="dnsSortIndicator">▲</span></th>
+    <th>Status</th>
+    <th>Actions</th>
+  </tr>
+  </thead>
+  <tbody>
+  {{range $ip, $device := .devices}}
+  <tr class="device-row">
+    <td class="device-ip">{{.IP}}</td>
+    <td class="device-dns {{if contains .DNS "fileserver"}}yellow{{else if contains .DNS "Sophos"}}pink{{else if contains .DNS "tr"}}blue{{end}}">{{.DNS}}</td>
+    <td class="status {{if eq .Status "alive"}}alive{{else}}dead{{end}}">{{.Status}}</td>
+    <td>
+      <form action="/ping" method="post" style="display:inline;" onsubmit="event.preventDefault(); submitForm(this);">
+        <input type="hidden" name="ip" value="{{.IP}}">
+        <button type="submit" class="btn btn-ping">Ping</button>
+      </form>
+      <form action="/ssh" method="post" style="display:inline;" onsubmit="event.preventDefault(); promptSSH(this);">
+        <input type="hidden" name="ip" value="{{.IP}}">
+        <button type="submit" class="btn btn-ssh">SSH</button>
+      </form>
+      <form action="/rdp" method="post" style="display:inline;" onsubmit="event.preventDefault(); submitForm(this);">
+        <input type="hidden" name="ip" value="{{.IP}}">
+        <button type="submit" class="btn btn-rdp">RDP</button>
+      </form>
+      <form action="/telnet" method="post" style="display:inline;" onsubmit="event.preventDefault(); submitForm(this);">
+        <input type="hidden" name="ip" value="{{.IP}}">
+        <button type="submit" class="btn btn-telnet">Telnet</button>
+      </form>
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+
+<script>
+  let ipSortAscending = true;
+  let dnsSortAscending = true;
+
+  function clearSearch() {
+    document.getElementById('searchQuery').value = '';
+    performSearch();
+  }
+
+  function performSearch() {
+    const query = document.getElementById('searchQuery').value.toLowerCase();
+    const rows = document.querySelectorAll('.device-row');
+
+    rows.forEach(row => {
+      const ip = row.querySelector('.device-ip').textContent.toLowerCase();
+      const dns = row.querySelector('.device-dns').textContent.toLowerCase();
+      if (ip.includes(query) || dns.includes(query)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  function clearRangeSearch() {
+    document.getElementById('rangeStartQuery').value = '';
+    document.getElementById('rangeEndQuery').value = '';
+    performRangeSearch();
+  }
+
+  function performRangeSearch() {
+    const startQuery = document.getElementById('rangeStartQuery').value;
+    const endQuery = document.getElementById('rangeEndQuery').value;
+    const rows = document.querySelectorAll('.device-row');
+
+    rows.forEach(row => {
+      const ip = row.querySelector('.device-ip').textContent;
+      if (isIPInRange(ip, startQuery, endQuery)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  function isIPInRange(ip, start, end) {
+    if (!validateIP(start) || !validateIP(end)) {
+      return false;
+    }
+    const ipParts = ip.split('.').map(Number);
+    const startParts = start.split('.').map(Number);
+    const endParts = end.split('.').map(Number);
+
+    for (let i = 0; i < 4; i++) {
+      if (ipParts[i] < startParts[i] || ipParts[i] > endParts[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function handleKeyPress(event, callback) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      callback();
+    }
+  }
+
+  function submitAddForm(form) {
+    const ip = document.getElementById('add_ip').value;
+    if (!validateIP(ip)) {
+      alert('Invalid IP address format. Please enter a valid IP address.');
+      return;
+    }
+
+    const formData = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: formData
+    }).then(response => {
+      if (response.ok) {
+        console.log('IP added successfully');
+        location.reload();
+      } else {
+        console.error('Failed to add IP');
+      }
+    });
+  }
+
+  function submitRangeForm() {
+    const startIP = document.getElementById('start_ip').value;
+    const endIP = document.getElementById('end_ip').value;
+
+    if (!validateIP(startIP) || !validateIP(endIP)) {
+      alert('Invalid IP address format. Please enter valid start and end IP addresses.');
+      return;
+    }
+
+    const form = document.getElementById('addRangeForm');
+    const formData = new FormData(form);
+
+    fetch(form.action, {
+      method: 'POST',
+      body: formData
+    }).then(response => {
+      if (response.ok) {
+        console.log('IP range added successfully');
+        location.reload();
+      } else {
+        console.error('Failed to add IP range');
+      }
+    });
+  }
+
+  function submitRemoveRangeForm() {
+    const startIP = document.getElementById('remove_start_ip').value;
+    const endIP = document.getElementById('remove_end_ip').value;
+
+    if (!validateIP(startIP) || !validateIP(endIP)) {
+      alert('Invalid IP address format. Please enter valid start and end IP addresses.');
+      return;
+    }
+
+    const form = document.getElementById('removeRangeForm');
+    const formData = new FormData(form);
+
+    fetch(form.action, {
+      method: 'POST',
+      body: formData
+    }).then(response => {
+      if (response.ok) {
+        console.log('IP range removed successfully');
+        location.reload();
+      } else {
+        console.error('Failed to remove IP range');
+      }
+    });
+  }
+
+  function validateIP(ip) {
+    const ipPattern = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    return ipPattern.test(ip);
+  }
+
+  function submitForm(form) {
+    const formData = new FormData(form);
+    const action = form.getAttribute('action');
+
+    fetch(action, {
+      method: 'POST',
+      body: formData
+    }).then(response => {
+      if (response.ok) {
+        console.log('Action completed successfully');
+      } else {
+        console.error('Action failed');
+      }
+    });
+  }
+
+  function promptSSH(form) {
+    const ip = form.querySelector('input[name="ip"]').value;
+    const username = prompt('Enter SSH username:');
+    if (username) {
+      const formData = new FormData();
+      formData.append('ip', ip);
+      formData.append('username', username);
+
+      fetch('/ssh', {
+        method: 'POST',
+        body: formData
+      }).then(response => {
+        if (response.ok) {
+          console.log('SSH command executed successfully');
+        } else {
+          console.error('SSH command failed');
+        }
+      });
+    }
+  }
+
+  function sortTableByIP() {
+    const table = document.getElementById('deviceTable').tBodies[0];
+    const rows = Array.from(table.rows);
+
+    rows.sort((a, b) => {
+      const ipA = a.querySelector('.device-ip').textContent.split('.').map(Number);
+      const ipB = b.querySelector('.device-ip').textContent.split('.').map(Number);
+      for (let i = 0; i < 4; i++) {
+        if (ipA[i] !== ipB[i]) {
+          return ipSortAscending ? ipA[i] - ipB[i] : ipB[i] - ipA[i];
+        }
+      }
+      return 0;
+    });
+
+    rows.forEach(row => table.appendChild(row));
+    ipSortAscending = !ipSortAscending;
+    document.getElementById('ipSortIndicator').textContent = ipSortAscending ? '▲' : '▼';
+  }
+
+  function sortTableByDNS() {
+    const table = document.getElementById('deviceTable').tBodies[0];
+    const rows = Array.from(table.rows);
+
+    rows.sort((a, b) => {
+      const dnsA = a.querySelector('.device-dns').textContent.toLowerCase();
+      const dnsB = b.querySelector('.device-dns').textContent.toLowerCase();
+      return dnsSortAscending ? dnsA.localeCompare(dnsB) : dnsB.localeCompare(dnsA);
+    });
+
+    rows.forEach(row => table.appendChild(row));
+    dnsSortAscending = !dnsSortAscending;
+    document.getElementById('dnsSortIndicator').textContent = dnsSortAscending ? '▲' : '▼';
+  }
+</script>
+</body>
+</html>
